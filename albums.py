@@ -1,5 +1,8 @@
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy import Spotify
+import seaborn as sns
+import pandas as pd
+import matplotlib.pyplot as plt
 import os
 from dotenv import load_dotenv
 #For getting the environment variables
@@ -14,9 +17,14 @@ scope = "user-library-read"
 sp = Spotify(auth_manager=SpotifyOAuth(scope=scope,
                                                client_id=SPOTIPY_CLIENT_ID,
                                                client_secret=SPOTIPY_CLIENT_SECRET))
+results_dict = sp.playlist_tracks("https://open.spotify.com/playlist/2RuXhLrgWt5odD2RUtYItC?si=108b9c68f7204c08")
+tracks_data = []
+name_tracks = []
+for result in results_dict["items"]:
+    track_data = sp.audio_features(result["track"]["id"])[0]  # Get audio features for each track
+    name_tracks.append(result["track"]["name"])
+    tracks_data.append(track_data)
 
-results = sp.current_user_saved_tracks()
-for idx, item in enumerate(results['items']):
-    track = item['track']
-    print(track)
-    #print(idx, track['artists'][0]['name'], " – ", track['name'])
+# Create a DataFrame with keys as indices
+df = pd.DataFrame(tracks_data)
+df = df.assign(name=name_tracks)
