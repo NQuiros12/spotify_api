@@ -18,49 +18,54 @@ scope = "user-library-read"
 sp = Spotify(auth_manager=SpotifyOAuth(scope=scope,
                                                client_id=SPOTIPY_CLIENT_ID,
                                                client_secret=SPOTIPY_CLIENT_SECRET))
+def download_data(url: str) -> pd.DataFrame:
+    
+    results_dict = sp.playlist_tracks(url)
+    tracks_data = []
+    name_tracks = []
+    album_names = []
+    track_ids = [item["track"]["id"] for item in results_dict["items"]]
+    
+    # Batch call for audio features
+    tracks_features = sp.audio_features(track_ids)
+    
+    for result, track_data in zip(results_dict["items"], tracks_features):
+        track_id = result["track"]["id"]
+        
+        # Get track information
+        track = sp.track(track_id)
+        album_name = track["album"]["name"]
 
+        name_tracks.append(result["track"]["name"])
+        tracks_data.append(track_data)
+        album_names.append(album_name)
 
-results_dict = sp.playlist_tracks("https://open.spotify.com/playlist/2RuXhLrgWt5odD2RUtYItC?si=108b9c68f7204c08")
-tracks_data = []
-name_tracks = []
-album_names = []  # New list to store album names
+    # Create a DataFrame with keys as indices and album information
+    df = pd.DataFrame(tracks_data)
+    df = df.assign(name=name_tracks, album=album_names)
+    
+    return df
+def create_plot_by_album(df:pd.DataFrame,audio_feature:str)->None:
+    df_grouped = df[[f"{audio_feature}", 'album']]
+    # Create dot plot# Create the figure and axis
+    plt.figure(figsize=(12, 8))
+    ax = sns.stripplot(y=audio_feature.lower(), x='album', data=df_grouped, jitter=True, size=5, alpha=0.7, palette='Set1')
 
-for result in results_dict["items"]:
-    track_data = sp.audio_features(result["track"]["id"])[0]  # Get audio features
+    # Customize x-tick labels (hide them) and use shorter labels or none
+    ax.set_xticks([])
 
-    # Get track information
-    track = sp.track(result["track"]["id"])
-    album_name = track["album"]["name"]
+    # Create a legend
+    handles, labels = ax.get_legend_handles_labels()
+    album_labels = df['album'].unique()
+    legend = plt.legend(title='Albums', labels=album_labels, loc='center left', bbox_to_anchor=(1, 0.5))
 
-    name_tracks.append(result["track"]["name"])
-    tracks_data.append(track_data)
-    album_names.append(album_name)
+    # Customize plot
+    plt.title(f'{audio_feature.capitalize()} of Songs by Album', fontsize=16)
+    plt.ylabel(f'{audio_feature}', fontsize=14)
+    plt.xlabel('Album', fontsize=14)
 
-# Create a DataFrame with keys as indices and album information
-df = pd.DataFrame(tracks_data)
-df = df.assign(name=name_tracks, album=album_names)
-
-df_grouped = df[['valence', 'album']]
-
-# Set plot style
-sns.set(style="whitegrid")
-
-# Create dot plot# Create the figure and axis
-plt.figure(figsize=(12, 8))
-ax = sns.stripplot(y='valence', x='album', data=df_grouped, jitter=True, size=5, alpha=0.7, palette='Set1')
-
-# Customize x-tick labels (hide them) and use shorter labels or none
-ax.set_xticks([])
-
-# Create a legend
-handles, labels = ax.get_legend_handles_labels()
-album_labels = df['album'].unique()
-legend = plt.legend(title='Albums', labels=album_labels, loc='center left', bbox_to_anchor=(1, 0.5))
-
-# Customize plot
-plt.title('Valence of Songs by Album', fontsize=16)
-plt.ylabel('Valence', fontsize=14)
-plt.xlabel('Album', fontsize=14)
-
-# Show plot
-plt.show()
+    # Show plot
+    plt.show()
+    # Call the function and measure time
+df = download_data("https://open.spotify.com/playlist/2RuXhLrgWt5odD2RUtYItC?si=108b9c68f7204c08")
+create_plot_by_album(df,"valence")
