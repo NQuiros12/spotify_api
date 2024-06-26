@@ -1,3 +1,5 @@
 spotify
 .env
 *cache*
+*.venv*
+venv
